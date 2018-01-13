@@ -1,0 +1,10 @@
+[package]
+name = "calculator"
+version = "0.1.0"
+authors = ["Zonico6 <Zonico67@gmail.com>"]
+
+[[bin]]
+name = "run"
+path = "src/bin.rs"
+
+[dependencies]
