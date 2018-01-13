@@ -1,14 +1,13 @@
-use self::super::Num;
-use self::super::Prior;
+use self::super::{Prior, Num, BinaryOperation, UnaryOperation};
 
 /// A brick with a unary operand
 pub struct UnaryBrick {
     priority: Prior,
-    operation: Box<Fn(Num) -> Num>,
+    operation: UnaryOperation,
     prev: Option<Box<Brick>>,
 }
 impl UnaryBrick {
-    pub fn new(last_brick: Option<Box<Brick>>, operation: Box<Fn(Num) -> Num>, priority: Prior) -> UnaryBrick {
+    pub fn new(last_brick: Option<Box<Brick>>, operation: UnaryOperation, priority: Prior) -> UnaryBrick {
         UnaryBrick {prev: last_brick, operation, priority}
     }
 }
@@ -32,12 +31,12 @@ impl Brick for UnaryBrick {
 /// A brick with a binary operand
 pub struct BinaryBrick {
     priority: Prior,
-    operation: Box<Fn(Num, Num) -> Num>,
+    operation: BinaryOperation,
     value: Num,
     prev: Option<Box<Brick>>
 }
 impl BinaryBrick {
-    pub fn new(last_brick: Option<Box<Brick>>, value: Num, operation: Box<Fn(Num, Num) -> Num>, priority: Prior) -> BinaryBrick {
+    pub fn new(last_brick: Option<Box<Brick>>, value: Num, operation: BinaryOperation, priority: Prior) -> BinaryBrick {
         let mut brick = BinaryBrick {prev: last_brick, value, operation, priority};
         if let Some(last_brick) = brick.prev {
             if brick.priority > last_brick.get_priority() {

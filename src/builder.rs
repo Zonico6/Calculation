@@ -1,16 +1,20 @@
 use std::error;
 use std::fmt;
+use std::rc::Rc;
 
-use self::super::Environment;
-use self::super::Num;
-use self::super::Prior;
-use self::super::bricks;
-use self::super::math;
+use self::super::{
+    Environment,
+    Num,
+    Prior,
+    bricks,
+    math,
+    UnaryOperation,
+    BinaryOperation,
+    UnaryOperationMap,
+    BinaryOperationMap,
+    AppendedOperationMap};
+
 use self::super::bricks::Brick;
-
-use self::super::UnaryOperationMap;
-use self::super::BinaryOperationMap;
-use self::super::AppendedOperationMap;
 
 #[derive(Debug)]
 pub enum Error {
@@ -39,15 +43,15 @@ impl fmt::Display for Error {
 impl Environment {
     fn new() -> Environment {
         let mut env = Environment::raw();
-        env.add_binary("+", 8f32, Box::new(|a, b| a + b));
-        env.add_binary("-", 8f32, Box::new(|a, b| a - b));
-        env.add_binary("*", 6f32, Box::new(|a, b| a * b));
-        env.add_binary("/", 6f32, Box::new(|a, b| a / b));
-        env.add_binary("^", 4f32, Box::new(|a, b| a.powf(b)));
-        env.add_unary("sqrt", 4f32, Box::new(|a| a.sqrt()));
-        env.add_unary("-", 1f32, Box::new(|a| -a));
-        env.add_appended("!", Box::new(math::fac));
-        env.add_unary("abs", 1f32, Box::new(|a| a.abs()));
+        env.add_binary("+", 8f32, Rc::new(|a, b| a + b));
+        env.add_binary("-", 8f32, Rc::new(|a, b| a - b));
+        env.add_binary("*", 6f32, Rc::new(|a, b| a * b));
+        env.add_binary("/", 6f32, Rc::new(|a, b| a / b));
+        env.add_binary("^", 4f32, Rc::new(|a, b| a.powf(b)));
+        env.add_unary("sqrt", 4f32, Rc::new(|a| a.sqrt()));
+        env.add_unary("-", 1f32, Rc::new(|a| -a));
+        env.add_appended("!", Rc::new(math::fac));
+        env.add_unary("abs", 1f32, Rc::new(|a| a.abs()));
         env
     }
     fn raw() -> Environment {
@@ -55,13 +59,13 @@ impl Environment {
             bin_operations: BinaryOperationMap::new(),
             app_operations: AppendedOperationMap::new()}
     }
-    fn add_unary(&mut self, qualifier: &str, priority: Prior, operation: Box<Fn(Num) -> Num>) {
+    fn add_unary(&mut self, qualifier: &str, priority: Prior, operation: UnaryOperation) {
         self.un_operations.insert(qualifier.to_string(), (operation, priority));
     }
-    fn add_binary(&mut self, qualifier: &str, priority: Prior, operation: Box<Fn(Num, Num) -> Num>) {
+    fn add_binary(&mut self, qualifier: &str, priority: Prior, operation: BinaryOperation) {
         self.bin_operations.insert(qualifier.to_string(), (operation, priority));
     }
-    fn add_appended(&mut self, qualifier: &str, operation: Box<Fn(Num) -> Num>) {
+    fn add_appended(&mut self, qualifier: &str, operation: UnaryOperation) {
         self.app_operations.insert(qualifier.to_string(), operation);
     }
 }
@@ -99,13 +103,13 @@ pub fn solve(env: &Environment, calc: String) -> Result<Num, Error> {
                 let result = env.bin_operations.get(&segment[..]);
 
                 if result.is_some() {
-                    let (ref operation, ref priority) = *result.unwrap();
+                    let (ref operation, priority) = *result.unwrap();
                     if started {
                         last_brick = Box::new(bricks::BinaryBrick::new(Some(last_brick),
-                                                                       v, *operation, *priority));
+                                                                       v, operation.clone(), priority));
                     } else {
                         last_brick = Box::new(bricks::BinaryBrick::new(None,
-                                                                       v, *operation, *priority));
+                                                                       v, operation.clone(), priority));
                     }
                 } else if let Some(operation) = env.app_operations.get(&segment[..]) { // Appended unary
                     value = Some(operation(v));
@@ -121,12 +125,12 @@ pub fn solve(env: &Environment, calc: String) -> Result<Num, Error> {
             if i.is_numeric() {
                 // Build unary block
             } else if result.is_some() { // finished unary operator
-                let (operation, priority) = *result.unwrap();
+                let (ref operation, priority) = *result.unwrap();
 
                         if started {
-                            last_brick = Box::new(bricks::UnaryBrick::new(Some(last_brick), operation, priority));
+                            last_brick = Box::new(bricks::UnaryBrick::new(Some(last_brick), operation.clone(), priority));
                         } else {
-                            last_brick = Box::new(bricks::UnaryBrick::new(None, operation, priority));
+                            last_brick = Box::new(bricks::UnaryBrick::new(None, operation.clone(), priority));
                 }
                 segment.clear();
                 parsing_unary = false;
